@@ -122,7 +122,7 @@ def generate(model, prompt, steps=128, gen_length=128, block_length=128, tempera
             logits = output.logits
             mask_index[:, prompt.shape[1] + (num_block + 1) * block_length:] = 0
             if factor is not None:
-                x0, transfer_index, _ = get_transfer_index_dynamic(logits, temperature, remasking, mask_index, x, None, factor)
+                x0, transfer_index = get_transfer_index_dynamic(logits, temperature, remasking, mask_index, x, None, factor)
             elif g_dllm:
                 x0, transfer_index, conf = get_transfer_index_g(logits, temperature, remasking, mask_index, x, None, block_length, avg_attn_scores, conf_arch)
                 conf_arch[transfer_index] = conf[transfer_index]

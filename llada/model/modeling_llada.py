@@ -90,9 +90,18 @@ __all__ = [
 
 log = logging.getLogger(__name__)
 
-# @torch.compile()
+@torch.compile()
 def scaled_dot_product_attention(q, k, v, mask=None, attn_mask=None, dropout_p=0.0, is_causal=False):
     return F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal)
+
+@torch.compile()
+def attn_avg(q, k, attn_mask=None):
+    d = q.size(-1)
+    s = (q @ k.transpose(-2, -1)) / math.sqrt(d)
+    if attn_mask is not None:
+        s = s + attn_mask
+    p = torch.softmax(s, dim=-1)
+    return p.mean(dim=1)
 
 class ModuleType(StrEnum):
     in_module = "in"
@@ -701,12 +710,15 @@ class LLaDABlock(nn.Module):
             # )
 
             avg_attn_scores = None
+            # if return_attn_scores and self.layer_id >= 28:
+            #     attn_scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(q.size(-1))
+            #     if attn_mask is not None:
+            #         attn_scores = attn_scores + attn_mask
+            #     attn_scores = torch.softmax(attn_scores, dim=-1)
+            #     avg_attn_scores = attn_scores.mean(dim=1)
+
             if return_attn_scores and self.layer_id >= 28:
-                attn_scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(q.size(-1))
-                if attn_mask is not None:
-                    attn_scores = attn_scores + attn_mask
-                attn_scores = torch.softmax(attn_scores, dim=-1)
-                avg_attn_scores = attn_scores.mean(dim=1)
+                avg_attn_scores = attn_avg(q, k, attn_mask).clone()
             
             return scaled_dot_product_attention(
                 q,
