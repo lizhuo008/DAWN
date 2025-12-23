@@ -86,7 +86,7 @@ def get_num_transfer_tokens(block_mask_index: torch.Tensor, steps: int) -> torch
 
 @ torch.no_grad()
 def generate(model, prompt, steps=128, gen_length=128, block_length=128, temperature=0.,
-             remasking='low_confidence', mask_id=126336, threshold=None, factor=None, g_dllm=False):
+             remasking='low_confidence', mask_id=126336, threshold=None, factor=None, g_dllm=False, local_leap=False):
     '''
     Args:
         model: Mask predictor.
@@ -126,6 +126,8 @@ def generate(model, prompt, steps=128, gen_length=128, block_length=128, tempera
             elif g_dllm:
                 x0, transfer_index, conf = get_transfer_index_g(logits, temperature, remasking, mask_index, x, None, block_length, avg_attn_scores, conf_arch)
                 conf_arch[transfer_index] = conf[transfer_index]
+            elif local_leap:
+                x0, transfer_index = get_transfer_index_localleap(logits, temperature, remasking, mask_index, x, None)
             else:
                 x0, transfer_index = get_transfer_index(logits, temperature, remasking, mask_index, x, num_transfer_tokens[:, i] if threshold is None else None, threshold)
             
@@ -494,6 +496,197 @@ def get_transfer_index_g(logits, temperature, remasking, mask_index, x, num_tran
         transfer_index = transfer_index | force_mask
         
     return x0, transfer_index, x0_p
+
+@torch.no_grad()
+def generate_klass(
+    model, input_ids_original, gen_length, steps, block_length, temperature=0., mask_id=126336,
+    conf_threshold=0.6, kl_threshold=0.015, kl_history_length=2, 
+    alg="klass",
+    unmask_strategy="all"
+):
+    """
+    reference: https://github.com/shkim0116/KLASS
+    used for baseline method in the paper, remove analysis of the model's output
+
+    Decoding strategy: Unmask tokens that are both high-confidence and have stable (low KL-divergence) softmax distributions over H steps.
+    Implements alg options: default, random, topk_margin, entropy.
+    """
+    mask_id = 126336
+    x = torch.full((1, input_ids_original.shape[1] + gen_length), mask_id, dtype=torch.long).to(model.device)
+    x[:, :input_ids_original.shape[1]] = input_ids_original.clone()
+
+    assert gen_length % block_length == 0
+    num_blocks = gen_length // block_length
+    assert steps % num_blocks == 0
+    steps_per_block = steps // num_blocks
+
+    used_steps = 0
+
+    # History buffers
+    V = model.lm_head.out_features if hasattr(model, "lm_head") else model.config.vocab_size
+    kl_history = torch.zeros((1, x.shape[1], kl_history_length), dtype=torch.float64, device=x.device)
+    p_prev = torch.zeros((1, x.shape[1], V), dtype=torch.float64, device=x.device)
+
+    all_step_outputs = []
+
+    for num_block in range(num_blocks):
+        block_start = input_ids_original.shape[1] + num_block * block_length
+        block_end = input_ids_original.shape[1] + (num_block + 1) * block_length
+        block_mask_index = (x[:, block_start:block_end] == mask_id)
+        num_transfer_tokens = get_num_transfer_tokens(block_mask_index, steps_per_block)
+
+        for step in range(steps_per_block):
+            mask_index = (x == mask_id)
+            # --- Restrict to current block ---
+            block_mask = torch.zeros_like(mask_index)
+            block_mask[:, block_start:block_end] = True
+            mask_index = mask_index & block_mask
+
+            # --- Break if all tokens in current block are unmasked ---
+            if not mask_index[:, block_start:block_end].any():
+                break
+
+            output, _ = model(x)
+            logits = output.logits
+            if temperature > 0:
+                logits = add_gumbel_noise(logits, temperature)
+            p_curr = F.softmax(logits.to(torch.float64), dim=-1)
+            x0 = torch.argmax(p_curr, dim=-1)
+
+            # --- Compute confidence according to alg ---
+            if alg == "random":
+                curr_conf = torch.rand((x0.shape[0], x0.shape[1]), device=x0.device)
+            elif alg == "topk_margin":
+                sorted_probs, _ = torch.sort(p_curr, dim=-1, descending=True)
+                top1 = sorted_probs[..., 0]
+                top2 = sorted_probs[..., 1]
+                curr_conf = top1 - top2
+            elif alg == "entropy":
+                eps_ent = 1e-10
+                log_p = torch.log(p_curr + eps_ent)
+                curr_conf = -torch.sum(p_curr * log_p, dim=-1)  # negative entropy (lower entropy = higher confidence)
+            else:  # default (top confidence)
+                curr_conf = torch.squeeze(torch.gather(p_curr, dim=-1, index=torch.unsqueeze(x0, -1)), -1)
+
+            # KL divergence between current and previous step
+            eps = 1e-12
+            kl_current_prev = (p_curr * (torch.log(p_curr + eps)
+                            - torch.log(p_prev + eps))
+                 ).sum(dim=-1)
+            # Shift kl_history and insert new KL at the end
+            kl_history = torch.roll(kl_history, shifts=-1, dims=-1)
+            kl_history[..., -1] = kl_current_prev
+
+            p_prev = p_curr.clone()
+
+            if alg == "klass":
+                # --- KL threshold logic ---
+                if step >= kl_history_length - 1:
+                    stable_mask = torch.all(kl_history < kl_threshold, dim=-1)
+                else:
+                    stable_mask = torch.zeros_like(curr_conf, dtype=torch.bool)
+                # --- Confidence threshold logic ---
+                conf_mask = curr_conf > conf_threshold
+
+                ready_mask = stable_mask & conf_mask & mask_index
+            else:
+                ready_mask = torch.zeros_like(curr_conf, dtype=torch.bool)
+
+            # Select top-k tokens to unmask
+            transfer_index = torch.zeros_like(x0, dtype=torch.bool, device=x.device)
+            decoded_token_info = [] 
+
+            for j in range(ready_mask.shape[0]):
+                ready_indices = torch.where(ready_mask[j])[0]
+                if len(ready_indices) > 0:
+                    if len(ready_indices) > 1 and unmask_strategy != "all":
+                        if unmask_strategy == "max_conf":
+                            # Pick the one with highest confidence
+                            conf_vals = curr_conf[j, ready_indices]
+                            max_idx = torch.argmax(conf_vals)
+                            selected_indices = ready_indices[max_idx:max_idx+1]
+                        elif unmask_strategy == "min_kl":
+                            # Pick the one with lowest KL divergence
+                            kl_vals = kl_current_prev[j, ready_indices]
+                            min_idx = torch.argmin(kl_vals)
+                            selected_indices = ready_indices[min_idx:min_idx+1]
+                        elif unmask_strategy == "random":
+                            selected_indices = ready_indices[torch.randint(0, len(ready_indices), (1,))]
+                        else:
+                            selected_indices = ready_indices
+                    else:
+                        selected_indices = ready_indices
+                    transfer_index[j, selected_indices] = True
+                # If no tokens meet both criteria, select top-k by confidence
+                else:
+                    curr_conf[:, input_ids_original.shape[1] + (num_block + 1) * block_length:] = -np.inf
+                    confidence = torch.where(mask_index, curr_conf, -np.inf)
+                    transfer_index = torch.zeros_like(x0, dtype=torch.bool, device=x0.device)
+                    _, selected_indices = torch.topk(confidence[j], k=num_transfer_tokens[j, step].item())
+                    transfer_index[j, selected_indices] = True
+
+            x[transfer_index] = x0[transfer_index]
+            used_steps += 1
+
+    return x, used_steps
+
+def get_transfer_index_localleap(logits, temperature, remasking, mask_index, x, num_transfer_tokens, 
+    threshold=0.9, relaxed_threshold=0.75, radius=4):
+    '''
+    reference: https://github.com/shkim0116/KLASS
+    used for local leap method in the paper
+    '''
+    logits_with_noise = add_gumbel_noise(logits, temperature=temperature)
+    x0 = torch.argmax(logits_with_noise, dim=-1) # b, l
+
+    if remasking == 'low_confidence':
+        p = F.softmax(logits.to(torch.float64), dim=-1)
+        x0_p = torch.squeeze(
+            torch.gather(p, dim=-1, index=torch.unsqueeze(x0, -1)), -1) # b, l
+    elif remasking == 'random':
+        x0_p = torch.rand((x0.shape[0], x0.shape[1]), device=x0.device)
+    else:
+        raise NotImplementedError(remasking)
+    
+    x0 = torch.where(mask_index, x0, x)
+    confidence = torch.where(mask_index, x0_p, -np.inf)
+
+    transfer_index = torch.zeros_like(x0, dtype=torch.bool, device=x0.device)
+    if threshold is not None:
+        num_transfer_tokens = mask_index.sum(dim=1, keepdim=True)
+    for j in range(confidence.shape[0]):
+        _, select_index = torch.topk(confidence[j], k=num_transfer_tokens[j])
+        transfer_index[j, select_index] = True
+        if threshold is not None:
+            mask_positions = torch.where(mask_index[j])[0]
+
+            neighbor_positions = set()
+            use_localleap = False
+
+            if relaxed_threshold is not None:
+                anchor_mask = confidence[j][mask_positions] >= threshold
+                anchor_count = anchor_mask.sum().item()
+
+                if anchor_count >= 1:
+                    use_localleap = True
+                    anchor_positions = mask_positions[anchor_mask]
+                    for pos in anchor_positions:
+                        pos_val = pos.item()
+                        # Add all positions of the anchor's neighbors.
+                        for neignbor_pos in range(max(0, pos_val - radius), min(confidence.shape[1], pos_val + radius + 1)):
+                            neighbor_positions.add(neignbor_pos)
+            
+            for k in range(1, num_transfer_tokens[j]):
+                pos = select_index[k].item()
+                if use_localleap:
+                    effective_threshold = relaxed_threshold if pos in neighbor_positions else threshold
+                else:
+                    effective_threshold = threshold
+                
+                if confidence[j, select_index[k]] < effective_threshold:
+                    transfer_index[j, select_index[k]] = False
+    
+    return x0, transfer_index
 
 def main():
     device = 'cuda'

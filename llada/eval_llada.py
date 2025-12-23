@@ -34,7 +34,7 @@ from lm_eval.api.registry import register_model
 from tqdm import tqdm
 import os
 from transformers import AutoTokenizer, AutoModel, AutoConfig
-from generate import generate, generate_with_prefix_cache, generate_with_dual_cache
+from generate import generate, generate_with_prefix_cache, generate_with_dual_cache, generate_klass
 from model.modeling_llada import LLaDAModelLM
 import json
 import time
@@ -69,6 +69,8 @@ class LLaDAEvalHarness(LM):
         show_speed=False,
         dual_cache=False,
         g_dllm=False,
+        klass=False,
+        local_leap=False,
         outp_path=None,
         **kwargs,
     ):
@@ -137,6 +139,8 @@ class LLaDAEvalHarness(LM):
         self.dual_cache = dual_cache
         self.g_dllm = g_dllm
         self.outp_path = outp_path
+        self.klass = klass
+        self.local_leap = local_leap
     @property
     def rank(self):
         return self._rank
@@ -348,9 +352,12 @@ class LLaDAEvalHarness(LM):
                 else:
                     generated_answer, nfe = generate_with_prefix_cache(self.model, input_ids, steps=self.steps, gen_length=self.gen_length, block_length=self.block_length, 
                                         temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold, factor=self.factor)
+            elif self.klass:
+                generated_answer, nfe = generate_klass(self.model, input_ids, gen_length=self.gen_length, steps=self.steps, block_length=self.block_length, 
+                                        temperature=0, mask_id=self.mask_id)
             else:
                 generated_answer, nfe = generate(self.model, input_ids, steps=self.steps, gen_length=self.gen_length, block_length=self.block_length, 
-                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold, factor=self.factor, g_dllm=self.g_dllm)
+                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold, factor=self.factor, g_dllm=self.g_dllm, local_leap=self.local_leap)
 
             if self.is_instruct and 'task_id' in req.doc and str(req.doc['task_id']).lower().startswith('humaneval'):
                 generated_answer_ids = generated_answer[:, input_ids.shape[1]:]
