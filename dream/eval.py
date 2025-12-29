@@ -74,6 +74,10 @@ class Dream(LM):
         alg_temp: Optional[float] = 0.0,
         escape_until: Optional[bool] = False,
         threshold: Optional[float] = 0.9,
+        threshold_e: Optional[float] = 0.1,
+        threshold_d: Optional[float] = 0.9,
+        threshold_c: Optional[float] = 0.7,
+        block_length: Optional[int] = 32,
         apply_chat_template: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         dual_cache: Optional[bool] = False,
@@ -200,6 +204,10 @@ class Dream(LM):
         self.alg_temp = alg_temp
         self.escape_until = escape_until
         self.threshold = threshold
+        self.threshold_e = threshold_e
+        self.threshold_d = threshold_d
+        self.threshold_c = threshold_c
+        self.block_length = block_length
         # loglikelihood params
         self.nll_type = nll_type
         self.log_type = log_type
@@ -318,7 +326,11 @@ class Dream(LM):
             alg=self.alg,
             alg_temp=self.alg_temp,
             threshold=self.threshold,
+            threshold_e=self.threshold_e,
+            threshold_d=self.threshold_d,
+            threshold_c=self.threshold_c,
             dual_cache=self.dual_cache,
+            block_length=self.block_length,
         )
 
         # decode

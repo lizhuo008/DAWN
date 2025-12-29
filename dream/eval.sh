@@ -5,7 +5,7 @@ export HF_DATASETS_TRUST_REMOTE_CODE=true
 ############################################### gsm8k evaluations ###############################################
 task=gsm8k
 length=256
-block_length=32
+block_length=64
 num_fewshot=5
 steps=$((length / block_length))
 model="/workplace/models/Dream/Dream-v0-Instruct-7B"
@@ -18,8 +18,8 @@ model="/workplace/models/Dream/Dream-v0-Instruct-7B"
 #     --batch_size 1 
 
 # g-dllm
-CUDA_VISIBLE_DEVICES=0 accelerate launch eval.py --model dream --limit 1\
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${length},add_bos_token=true,alg=g-dllm,show_speed=True,threshold_e=0.1,threshold_d=0.9,threshold_c=0.7 \
+CUDA_VISIBLE_DEVICES=0 accelerate launch eval.py --model dream \
+    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${length},block_length=${block_length},add_bos_token=true,alg=g-dllm,show_speed=True,threshold_e=0.1,threshold_d=0.9,threshold_c=0.7 \
     --tasks ${task} \
     --num_fewshot ${num_fewshot} \
     --batch_size 1 
