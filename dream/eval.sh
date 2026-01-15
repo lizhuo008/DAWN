@@ -15,86 +15,86 @@ num_fewshot=5
 steps=$((length / block_length))
 
 
-# baseline
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${length},add_bos_token=true,alg=entropy,show_speed=True,outp_path=evals_results_${model_name}/baseline/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/baseline/${task}-ns0-${length}
+# # baseline
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${length},add_bos_token=true,alg=entropy,show_speed=True,outp_path=evals_results_${model_name}/baseline/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/baseline/${task}-ns0-${length}
 
 
-# parallel
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=confidence_threshold,threshold=0.9,show_speed=True,outp_path=evals_results_${model_name}/parallel/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/parallel/${task}-ns0-${length}
+# # parallel
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=confidence_threshold,threshold=0.9,show_speed=True,outp_path=evals_results_${model_name}/parallel/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/parallel/${task}-ns0-${length}
 
-# g-dllm
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=g-dllm,show_speed=True,conf_threshold=0.7,outp_path=evals_results_${model_name}/g-dllm/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/g-dllm/${task}-ns0-${length}
+# # g-dllm
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=g-dllm,show_speed=True,conf_threshold=0.7,outp_path=evals_results_${model_name}/g-dllm/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/g-dllm/${task}-ns0-${length}
 
-# klass
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=klass,show_speed=True,conf_threshold=0.7,kl_threshold=0.015,outp_path=evals_results_${model_name}/klass/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/klass/${task}-ns0-${length}
+# # klass
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=klass,show_speed=True,conf_threshold=0.7,kl_threshold=0.015,outp_path=evals_results_${model_name}/klass/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/klass/${task}-ns0-${length}
 
 # # local leap
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=local_leap,show_speed=True,outp_path=evals_results_${model_name}/local_leap/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/local_leap/${task}-ns0-${length}
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=local_leap,show_speed=True,outp_path=evals_results_${model_name}/local_leap/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/local_leap/${task}-ns0-${length}
 
 ############################################### minerva_math evaluations ###############################################
-task=math
+task=minerva_math
 length=256
 block_length=32
 num_fewshot=4
 steps=$((length / block_length))
 
-# baseline
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${length},add_bos_token=true,alg=entropy,show_speed=True,outp_path=evals_results_${model_name}/baseline/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/baseline/${task}-ns0-${length}
+# # baseline
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${length},add_bos_token=true,alg=entropy,show_speed=True,outp_path=evals_results_${model_name}/baseline/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/baseline/${task}-ns0-${length}
 
 
-# parallel
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=confidence_threshold,threshold=0.9,show_speed=True,outp_path=evals_results_${model_name}/parallel/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/parallel/${task}-ns0-${length}
+# # parallel
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=confidence_threshold,threshold=0.9,show_speed=True,outp_path=evals_results_${model_name}/parallel/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/parallel/${task}-ns0-${length}
 
-# g-dllm
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=g-dllm,show_speed=True,conf_threshold=0.7,outp_path=evals_results_${model_name}/g-dllm/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/g-dllm/${task}-ns0-${length}
+# # g-dllm
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=g-dllm,show_speed=True,conf_threshold=0.7,outp_path=evals_results_${model_name}/g-dllm/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/g-dllm/${task}-ns0-${length}
 
-# klass
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=klass,show_speed=True,conf_threshold=0.7,kl_threshold=0.015,outp_path=evals_results_${model_name}/klass/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/klass/${task}-ns0-${length}
+# # klass
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=klass,show_speed=True,conf_threshold=0.7,kl_threshold=0.015,outp_path=evals_results_${model_name}/klass/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/klass/${task}-ns0-${length}
 
 # # local leap
 CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
@@ -111,38 +111,38 @@ block_length=32
 num_fewshot=0
 steps=$((length / block_length))
 
-# baseline
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${length},add_bos_token=true,alg=entropy,show_speed=True,outp_path=evals_results_${model_name}/baseline/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/baseline/${task}-ns0-${length}
+# # baseline
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${length},add_bos_token=true,alg=entropy,show_speed=True,outp_path=evals_results_${model_name}/baseline/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/baseline/${task}-ns0-${length}
 
 
-# parallel
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=confidence_threshold,threshold=0.9,show_speed=True,outp_path=evals_results_${model_name}/parallel/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/parallel/${task}-ns0-${length}
+# # parallel
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=confidence_threshold,threshold=0.9,show_speed=True,outp_path=evals_results_${model_name}/parallel/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/parallel/${task}-ns0-${length}
 
-# g-dllm
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=g-dllm,show_speed=True,conf_threshold=0.7,outp_path=evals_results_${model_name}/g-dllm/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/g-dllm/${task}-ns0-${length}
+# # g-dllm
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=g-dllm,show_speed=True,conf_threshold=0.7,outp_path=evals_results_${model_name}/g-dllm/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/g-dllm/${task}-ns0-${length}
 
-# klass
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=klass,show_speed=True,conf_threshold=0.7,kl_threshold=0.015,outp_path=evals_results_${model_name}/klass/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/klass/${task}-ns0-${length}
+# # klass
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=klass,show_speed=True,conf_threshold=0.7,kl_threshold=0.015,outp_path=evals_results_${model_name}/klass/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/klass/${task}-ns0-${length}
 
 # # local leap
 CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
@@ -150,7 +150,7 @@ CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
     --tasks ${task} \
     --num_fewshot ${num_fewshot} \
     --batch_size 1 \
-    --output_path evals_results_${model_name}/local_leap/${task}-ns0-${length}
+    --output_path evals_results_${model_name}/local_leap/${task}-ns0-${length} --log_samples
 
 ############################################### mbpp evaluations ###############################################
 task=mbpp
@@ -159,38 +159,38 @@ block_length=32
 num_fewshot=3
 steps=$((length / block_length))
 
-# baseline
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${length},add_bos_token=true,alg=entropy,show_speed=True,outp_path=evals_results_${model_name}/baseline/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/baseline/${task}-ns0-${length}
+# # baseline
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${length},add_bos_token=true,alg=entropy,show_speed=True,outp_path=evals_results_${model_name}/baseline/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/baseline/${task}-ns0-${length}
 
 
-# parallel
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=confidence_threshold,threshold=0.9,show_speed=True,outp_path=evals_results_${model_name}/parallel/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/parallel/${task}-ns0-${length}
+# # parallel
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=confidence_threshold,threshold=0.9,show_speed=True,outp_path=evals_results_${model_name}/parallel/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/parallel/${task}-ns0-${length}
 
-# g-dllm
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=g-dllm,show_speed=True,conf_threshold=0.7,outp_path=evals_results_${model_name}/g-dllm/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/g-dllm/${task}-ns0-${length}
+# # g-dllm
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=g-dllm,show_speed=True,conf_threshold=0.7,outp_path=evals_results_${model_name}/g-dllm/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/g-dllm/${task}-ns0-${length}
 
-# klass
-CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
-    --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=klass,show_speed=True,conf_threshold=0.7,kl_threshold=0.015,outp_path=evals_results_${model_name}/klass/${task}-ns0-${length}/results.jsonl \
-    --tasks ${task} \
-    --num_fewshot ${num_fewshot} \
-    --batch_size 1 \
-    --output_path evals_results_${model_name}/klass/${task}-ns0-${length}
+# # klass
+# CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
+#     --model_args pretrained=${model},max_new_tokens=${length},diffusion_steps=${steps},block_length=${block_length},add_bos_token=true,alg=klass,show_speed=True,conf_threshold=0.7,kl_threshold=0.015,outp_path=evals_results_${model_name}/klass/${task}-ns0-${length}/results.jsonl \
+#     --tasks ${task} \
+#     --num_fewshot ${num_fewshot} \
+#     --batch_size 1 \
+#     --output_path evals_results_${model_name}/klass/${task}-ns0-${length}
 
 # # local leap
 CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
@@ -198,4 +198,4 @@ CUDA_VISIBLE_DEVICES=${device} accelerate launch eval.py --model dream \
     --tasks ${task} \
     --num_fewshot ${num_fewshot} \
     --batch_size 1 \
-    --output_path evals_results_${model_name}/local_leap/${task}-ns0-${length}
+    --output_path evals_results_${model_name}/local_leap/${task}-ns0-${length} --log_samples

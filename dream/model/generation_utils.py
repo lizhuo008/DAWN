@@ -845,7 +845,7 @@ class DreamGenerationMixin:
                     transfer_index[0, select_index[0]] = True
                     transfer_index = self.get_transfer_index_localleap(
                                 transfer_index, full_confidence, select_index, mask_index, x, logits, current_transfer_tokens, 
-                                0.9, 0.75, 4
+                                0.9, 0.8, 4
                             )
                     x[transfer_index] = x_[transfer_index].clone()
                 else:
