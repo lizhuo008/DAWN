@@ -75,6 +75,9 @@ class LLaDAEvalHarness(LM):
         threshold_c=0.7,
         threshold_klass=0.6,
         kl_threshold=0.015,
+        threshold_d=0.7,
+        relaxed_threshold=0.75,
+        radius=4,
         **kwargs,
     ):
         '''
@@ -147,6 +150,9 @@ class LLaDAEvalHarness(LM):
         self.threshold_c = threshold_c
         self.threshold_klass = threshold_klass
         self.kl_threshold = kl_threshold
+        self.threshold_d = threshold_d
+        self.relaxed_threshold = relaxed_threshold
+        self.radius = radius
     @property
     def rank(self):
         return self._rank
@@ -363,7 +369,7 @@ class LLaDAEvalHarness(LM):
                                         temperature=0, mask_id=self.mask_id, conf_threshold=self.threshold_klass, kl_threshold=self.kl_threshold,)
             else:
                 generated_answer, nfe = generate(self.model, input_ids, steps=self.steps, gen_length=self.gen_length, block_length=self.block_length, 
-                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold, factor=self.factor, g_dllm=self.g_dllm, local_leap=self.local_leap, threshold_c=self.threshold_c)
+                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold, factor=self.factor, g_dllm=self.g_dllm, local_leap=self.local_leap, threshold_d=self.threshold_d, threshold_c=self.threshold_c, relaxed_threshold=self.relaxed_threshold, radius=self.radius)
 
             # torch.cuda.empty_cache()
             

@@ -86,7 +86,7 @@ def get_num_transfer_tokens(block_mask_index: torch.Tensor, steps: int) -> torch
 
 @ torch.no_grad()
 def generate(model, prompt, steps=128, gen_length=128, block_length=128, temperature=0.,
-             remasking='low_confidence', mask_id=126336, threshold=None, factor=None, g_dllm=False, local_leap=False, threshold_c=0.7):
+             remasking='low_confidence', mask_id=126336, threshold=None, factor=None, g_dllm=False, local_leap=False, threshold_d=0.7, threshold_c=0.7, relaxed_threshold=0.75, radius=4):
     '''
     Args:
         model: Mask predictor.
@@ -101,8 +101,8 @@ def generate(model, prompt, steps=128, gen_length=128, block_length=128, tempera
     '''
     x = torch.full((prompt.shape[0], prompt.shape[1] + gen_length), mask_id, dtype=torch.long).to(model.device)
     x[:, :prompt.shape[1]] = prompt.clone()
-    conf_arch = torch.full((prompt.shape[0], prompt.shape[1] + gen_length), 0, dtype=torch.float64).to(model.device)
-    conf_arch[:, :prompt.shape[1]] = 1
+    # conf_arch = torch.full((prompt.shape[0], prompt.shape[1] + gen_length), 0, dtype=torch.float64).to(model.device)
+    # conf_arch[:, :prompt.shape[1]] = 1
 
     assert gen_length % block_length == 0
     num_blocks = gen_length // block_length
@@ -124,10 +124,9 @@ def generate(model, prompt, steps=128, gen_length=128, block_length=128, tempera
             if factor is not None:
                 x0, transfer_index = get_transfer_index_dynamic(logits, temperature, remasking, mask_index, x, None, factor)
             elif g_dllm:
-                x0, transfer_index, conf = get_transfer_index_g(logits, temperature, remasking, mask_index, x, None, avg_attn_scores, conf_arch, threshold_c=threshold_c, num_block = num_block, block_length = block_length, prompt_length = prompt.shape[1])
-                conf_arch[transfer_index] = conf[transfer_index]
+                x0, transfer_index = get_transfer_index_g(logits, temperature, remasking, mask_index, x, None, avg_attn_scores, threshold_d=threshold_d, threshold_c=threshold_c, num_block = num_block, block_length = block_length, prompt_length = prompt.shape[1])
             elif local_leap:
-                x0, transfer_index = get_transfer_index_localleap(logits, temperature, remasking, mask_index, x, None)
+                x0, transfer_index = get_transfer_index_localleap(logits, temperature, remasking, mask_index, x, None, threshold = threshold, relaxed_threshold = relaxed_threshold, radius = radius)
             else:
                 x0, transfer_index = get_transfer_index(logits, temperature, remasking, mask_index, x, num_transfer_tokens[:, i] if threshold is None else None, threshold)
             
@@ -430,11 +429,11 @@ def get_transfer_index_dynamic(logits, temperature, remasking, mask_index, x, nu
 
     return x0, transfer_index
 
-def get_transfer_index_g(logits, temperature, remasking, mask_index, x, num_transfer_tokens, avg_attn_scores, conf_arch, threshold_e=0.1, threshold_d=0.9, threshold_c=0.7, num_block=0, block_length=32, prompt_length=None):
+def get_transfer_index_g(logits, temperature, remasking, mask_index, x, num_transfer_tokens, avg_attn_scores, threshold_d=0.7, threshold_c=0.7, num_block=0, block_length=32, prompt_length=None):
     # attn sink removal
     assert avg_attn_scores is not None, 'avg_attn_scores is None'
     # sink_mask = detect_attn_sinks(avg_attn_scores, topk=3)
-    sink_mask = detect_attn_sinks_(avg_attn_scores, threshold=0.02)
+    sink_mask = detect_attn_sinks_(avg_attn_scores, threshold=0.01)
     key_sink_mask = sink_mask.unsqueeze(1)      # [B, 1, L]
     avg_attn_scores = avg_attn_scores.masked_fill(key_sink_mask, 0.0)  # [B, L, L]
 
@@ -474,13 +473,13 @@ def get_transfer_index_g(logits, temperature, remasking, mask_index, x, num_tran
     # dependent_conf, _ = dependent_conf.max(dim=1)
     conf_d = torch.where(dependent_nodes, x0_p, -np.inf)
     # transfer_index = conf_d >= (threshold_d + threshold_c - dependent_conf)
-    transfer_index_a = conf_d >= 0.7
+    transfer_index_a = conf_d >= threshold_d
 
     # select the conflicting nodes
     # node_mask = mask_index & ~sink_mask & (x0_p >= 0.7) 
     adj_ti_mask = quantile_mask & transfer_index_a.unsqueeze(-1) & transfer_index_conf.unsqueeze(-1)
     adj_ti_mask = adj_ti_mask.any(dim=1)
-    node_mask = mask_index & (x0_p >= threshold_c) & (x0_p < 0.9) & ~transfer_index_a & ~adj_ti_mask
+    node_mask = mask_index & (x0_p >= threshold_c) & ~transfer_index_conf & ~transfer_index_a & ~adj_ti_mask
     transfer_index_c = torch.zeros_like(x0, dtype=torch.bool, device=x0.device)
 
     if node_mask.sum(dim=-1).min().item() != 0:
@@ -502,7 +501,7 @@ def get_transfer_index_g(logits, temperature, remasking, mask_index, x, num_tran
         force_mask = torch.zeros_like(transfer_index).scatter_(1, max_conf_indices, True)
         transfer_index = transfer_index | force_mask
         
-    return x0, transfer_index, x0_p
+    return x0, transfer_index
 
 @torch.no_grad()
 def generate_klass(

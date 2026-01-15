@@ -74,7 +74,6 @@ class Dream(LM):
         alg_temp: Optional[float] = 0.0,
         escape_until: Optional[bool] = False,
         threshold: Optional[float] = 0.9,
-        threshold_e: Optional[float] = 0.1,
         threshold_d: Optional[float] = 0.9,
         conf_threshold: Optional[float] = 0.7,
         kl_threshold: Optional[float] = 0.015,
@@ -85,6 +84,8 @@ class Dream(LM):
         save_dir: Optional[str] = None,
         outp_path: Optional[str] = None,
         show_speed: Optional[bool] = False,
+        relaxed_threshold: Optional[float] = 0.8,
+        radius: Optional[int] = 4,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -207,7 +208,6 @@ class Dream(LM):
         self.alg_temp = alg_temp
         self.escape_until = escape_until
         self.threshold = threshold
-        self.threshold_e = threshold_e
         self.threshold_d = threshold_d
         self.conf_threshold = conf_threshold
         self.kl_threshold = kl_threshold
@@ -225,6 +225,8 @@ class Dream(LM):
         self.save_dir = save_dir
         self.outp_path = outp_path
         self.show_speed = show_speed
+        self.relaxed_threshold = relaxed_threshold
+        self.radius = radius
     @property
     def batch_size(self):
         return self.batch_size_per_gpu
@@ -332,10 +334,11 @@ class Dream(LM):
             alg=self.alg,
             alg_temp=self.alg_temp,
             threshold=self.threshold,
-            threshold_e=self.threshold_e,
             threshold_d=self.threshold_d,
             conf_threshold=self.conf_threshold,
             kl_threshold=self.kl_threshold,
+            relaxed_threshold=self.relaxed_threshold,
+            radius=self.radius,
             dual_cache=self.dual_cache,
             block_length=self.block_length,
         )

@@ -358,11 +358,12 @@ class DreamGenerationMixin:
             attention_mask=attention_mask 
         )
         threshold = kwargs.get("threshold", 0.9)
-        threshold_e = kwargs.get("threshold_e", 0.1)
         threshold_d = kwargs.get("threshold_d", 0.9)
         conf_threshold = kwargs.get("conf_threshold", 0.7)
         kl_threshold = kwargs.get("kl_threshold", 0.015)
         block_length = kwargs.get("block_length", 32)
+        relaxed_threshold = kwargs.get("relaxed_threshold", 0.8)
+        radius = kwargs.get("radius", 4)
 
         result, nfe = self._sample_block(
             input_ids,
@@ -371,11 +372,12 @@ class DreamGenerationMixin:
             generation_tokens_hook_func=generation_tokens_hook_func,
             generation_logits_hook_func=generation_logits_hook_func,
             threshold=threshold,
-            threshold_e=threshold_e,
             threshold_d=threshold_d,
             conf_threshold=conf_threshold,
             block_length=block_length,
             kl_threshold=kl_threshold,
+            relaxed_threshold=relaxed_threshold,
+            radius=radius,
         )
         return result, nfe
 
@@ -387,7 +389,6 @@ class DreamGenerationMixin:
         generation_tokens_hook_func,
         generation_logits_hook_func,
         threshold: Optional[float] = 0.9,
-        threshold_e: Optional[float] = 0.1,
         threshold_d: Optional[float] = 0.9,
         threshold_c: Optional[float] = 0.7,
     ) -> Union[DreamModelOutput, torch.LongTensor]:
@@ -497,7 +498,7 @@ class DreamGenerationMixin:
                 
                 x0_p, x0 = sample_tokens(logits, temperature=temperature, top_p=top_p, top_k=top_k)
 
-                quantile_mask = avg_attn_scores >= threshold_e
+                quantile_mask = avg_attn_scores >= 0.07
                 quantile_mask = quantile_mask.transpose(1, 2)
 
                 # select the dependent nodes
@@ -592,10 +593,11 @@ class DreamGenerationMixin:
         generation_logits_hook_func,
         threshold: Optional[float] = 0.9,
         block_length: Optional[int] = 32,
-        threshold_e: Optional[float] = 0.1,
         threshold_d: Optional[float] = 0.9,
         conf_threshold: Optional[float] = 0.7,
         kl_threshold: Optional[float] = 0.015,
+        relaxed_threshold: Optional[float] = 0.8,
+        radius: Optional[int] = 4,
     ) -> Union[DreamModelOutput, torch.LongTensor]:
         # init values
         output_history = generation_config.output_history
@@ -656,9 +658,9 @@ class DreamGenerationMixin:
 
         #     number_transfer_tokens = mask_index.sum().item() // steps
         #     left_tokens_last_step = 0
-        if alg == 'g-dllm':
-            conf_arch = torch.full_like(x, 0.0, device=self.device, dtype=torch.bfloat16)
-            conf_arch[:, :input_ids.shape[1]] = 1.0
+        # if alg == 'g-dllm':
+        #     conf_arch = torch.full_like(x, 0.0, device=self.device, dtype=torch.bfloat16)
+        #     conf_arch[:, :input_ids.shape[1]] = 1.0
 
         for num_block in range(num_blocks):
             if alg == 'confidence_threshold' or alg == 'local_leap':
@@ -716,7 +718,7 @@ class DreamGenerationMixin:
                     x[transfer_index] = x_[transfer_index].clone()
                 elif alg == 'g-dllm':
                     assert avg_attn_scores is not None, 'avg_attn_scores is None'
-                    sink_mask = detect_attn_sinks_(avg_attn_scores, threshold=0.02)
+                    sink_mask = detect_attn_sinks_(avg_attn_scores, threshold=0.01)
                     key_sink_mask = sink_mask.unsqueeze(1)      # [B, 1, L]
                     avg_attn_scores = avg_attn_scores.masked_fill(key_sink_mask, 0.0)  # [B, L, L]
 
@@ -744,7 +746,7 @@ class DreamGenerationMixin:
                     #                     )
                     # dependent_conf, _ = dependent_conf.max(dim=1)
                     conf_d = torch.where(dependent_nodes, x0_p, -np.inf)
-                    transfer_index_a = conf_d >= 0.7
+                    transfer_index_a = conf_d >= threshold_d
 
                     adj_ti_mask = quantile_mask & transfer_index_a.unsqueeze(-1) & transfer_index_conf.unsqueeze(-1)
                     adj_ti_mask = adj_ti_mask.any(dim=1)
@@ -774,7 +776,7 @@ class DreamGenerationMixin:
                         transfer_index = transfer_index | force_mask
 
                     x[transfer_index] = x0[transfer_index]
-                    conf_arch[transfer_index] = x0_p[transfer_index]
+                    # conf_arch[transfer_index] = x0_p[transfer_index]
                 elif alg == 'klass':
                     p_curr_masked = torch.softmax(mask_logits, dim=-1).to(p_prev.dtype)  # [num_masked, V]
                     x0_masked = torch.argmax(p_curr_masked, dim=-1)  # [num_masked]
@@ -845,7 +847,7 @@ class DreamGenerationMixin:
                     transfer_index[0, select_index[0]] = True
                     transfer_index = self.get_transfer_index_localleap(
                                 transfer_index, full_confidence, select_index, mask_index, x, logits, current_transfer_tokens, 
-                                0.9, 0.8, 4
+                                conf_threshold, relaxed_threshold, radius
                             )
                     x[transfer_index] = x_[transfer_index].clone()
                 else:
