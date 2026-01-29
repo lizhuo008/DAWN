@@ -54,7 +54,7 @@ logger = logging.get_logger(__name__)
 _CHECKPOINT_FOR_DOC = "Dream-7B"
 _CONFIG_FOR_DOC = "DreamConfig"
 
-@torch.compile()
+# @torch.compile()
 def attn_avg(q, k, attn_mask=None):
     d = q.size(-1)
     s = (q @ k.transpose(-2, -1)) / math.sqrt(d)

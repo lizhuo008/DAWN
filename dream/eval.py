@@ -75,6 +75,9 @@ class Dream(LM):
         escape_until: Optional[bool] = False,
         threshold: Optional[float] = 0.9,
         threshold_d: Optional[float] = 0.9,
+        threshold_sink: Optional[float] = 0.01,
+        threshold_e: Optional[float] = 0.07,
+        factor: Optional[float] = 1.0,
         conf_threshold: Optional[float] = 0.7,
         kl_threshold: Optional[float] = 0.015,
         block_length: Optional[int] = 32,
@@ -209,6 +212,9 @@ class Dream(LM):
         self.escape_until = escape_until
         self.threshold = threshold
         self.threshold_d = threshold_d
+        self.threshold_sink = threshold_sink
+        self.threshold_e = threshold_e
+        self.factor = factor
         self.conf_threshold = conf_threshold
         self.kl_threshold = kl_threshold
         self.block_length = block_length
@@ -335,6 +341,9 @@ class Dream(LM):
             alg_temp=self.alg_temp,
             threshold=self.threshold,
             threshold_d=self.threshold_d,
+            threshold_sink=self.threshold_sink,
+            threshold_e=self.threshold_e,
+            factor=self.factor,
             conf_threshold=self.conf_threshold,
             kl_threshold=self.kl_threshold,
             relaxed_threshold=self.relaxed_threshold,
