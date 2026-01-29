@@ -68,16 +68,16 @@ class LLaDAEvalHarness(LM):
         save_dir=None,
         show_speed=False,
         dual_cache=False,
-        g_dllm=False,
+        dawn=False,
         klass=False,
         local_leap=False,
         outp_path=None,
-        threshold_c=0.7,
         threshold_klass=0.6,
         kl_threshold=0.015,
-        threshold_d=0.7,
-        threshold_sink=0.01,
-        threshold_e=0.07,
+        tau_sink=0.01,
+        tau_edge=0.07,
+        tau_induce=0.7,
+        tau_low=0.7,
         relaxed_threshold=0.75,
         radius=4,
         **kwargs,
@@ -145,16 +145,16 @@ class LLaDAEvalHarness(LM):
         self.save_dir = save_dir
         self.show_speed = show_speed
         self.dual_cache = dual_cache
-        self.g_dllm = g_dllm
+        self.dawn = dawn
         self.outp_path = outp_path
         self.klass = klass
         self.local_leap = local_leap
-        self.threshold_c = threshold_c
         self.threshold_klass = threshold_klass
         self.kl_threshold = kl_threshold
-        self.threshold_d = threshold_d
-        self.threshold_sink = threshold_sink
-        self.threshold_e = threshold_e
+        self.tau_sink = tau_sink
+        self.tau_edge = tau_edge
+        self.tau_induce = tau_induce
+        self.tau_low = tau_low
         self.relaxed_threshold = relaxed_threshold
         self.radius = radius
     @property
@@ -373,7 +373,7 @@ class LLaDAEvalHarness(LM):
                                         temperature=0, mask_id=self.mask_id, conf_threshold=self.threshold_klass, kl_threshold=self.kl_threshold,)
             else:
                 generated_answer, nfe = generate(self.model, input_ids, steps=self.steps, gen_length=self.gen_length, block_length=self.block_length, 
-                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold, factor=self.factor, g_dllm=self.g_dllm, local_leap=self.local_leap, threshold_sink=self.threshold_sink, threshold_e=self.threshold_e, threshold_d=self.threshold_d, threshold_c=self.threshold_c, relaxed_threshold=self.relaxed_threshold, radius=self.radius)
+                                        temperature=0, remasking=self.remasking, mask_id=self.mask_id, threshold=self.threshold, factor=self.factor, dawn=self.dawn, local_leap=self.local_leap, tau_sink=self.tau_sink, tau_edge=self.tau_edge, tau_induce=self.tau_induce, tau_low=self.tau_low, relaxed_threshold=self.relaxed_threshold, radius=self.radius)
 
             # torch.cuda.empty_cache()
             
